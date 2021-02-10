@@ -20,6 +20,9 @@
 
 Backend part of the Cocktail Bar application. Currently hosted on Heroku.
 
-Frontend part designed and developed by Olja Milović and it is available at [GitHub Account](https://github.com/olja-milovic).
-
 ### Website is live on [Den of Thieves](https://den-of-thieves.netlify.app/).
+
+## Contributor
+
+Frontend developed by [Olja Milović](https://github.com/olja-milovic),
+and its source code is available at [Cocktail Bar Frontend](https://github.com/olja-milovic/cocktail-bar-frontend).
