@@ -9,10 +9,9 @@ def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
 
-    CORS(app, 
+    CORS(app,
          resources={r'/*': {'origins': app.config.get('FRONTEND_URL')}},
-         supports_credentials=True
-    )
+         supports_credentials=True)
 
     db.init_app(app)
     migrate.init_app(app, db)

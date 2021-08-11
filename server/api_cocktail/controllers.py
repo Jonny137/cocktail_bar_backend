@@ -1,5 +1,5 @@
 import os
-from flask import abort, jsonify, make_response
+from flask import abort
 from sqlalchemy import func, exc, or_, and_
 import cloudinary
 import cloudinary.uploader
@@ -241,8 +241,8 @@ def find_cocktails(args):
             func.lower(Ingredient.name).contains(search_value))
 
     ingredients = [args.get(ing).split(',') for ing in keys
-                   if ing in ['mixer', 'spirit', 'wine', 'liqueur']
-                   and args.get(ing) is not None]
+                   if ing in ['mixer', 'spirit', 'wine', 'liqueur'] and
+                   args.get(ing) is not None]
     ingredients = [ing for sublist in ingredients for ing in sublist]
 
     for ing in ingredients:

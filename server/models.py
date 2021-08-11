@@ -9,10 +9,15 @@ from server import db
 class User(db.Model):
     __tablename__ = 'user'
 
-    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4,
-                    unique=True, nullable=False)
-    username = db.Column(db.String(255), unique=True, index=True, 
-                    nullable=False)
+    id = db.Column(UUID(as_uuid=True),
+                   primary_key=True,
+                   default=uuid.uuid4,
+                   unique=True,
+                   nullable=False)
+    username = db.Column(db.String(255),
+                         unique=True,
+                         index=True,
+                         nullable=False)
     password = db.Column(db.String(255), nullable=False)
 
     def __repr__(self):
@@ -32,27 +37,35 @@ class User(db.Model):
         }
 
 
-class Cocktail_Ingredients(db.Model):
+class CocktailIngredients(db.Model):
     __tablename__ = 'cocktail_ingredients'
 
-    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4,
-                   unique=True, nullable=False)
-    cocktail_id = db.Column(UUID(as_uuid=True), db.ForeignKey('cocktail.id'),
-              primary_key=True)
+    id = db.Column(UUID(as_uuid=True),
+                   primary_key=True,
+                   default=uuid.uuid4,
+                   unique=True,
+                   nullable=False)
+    cocktail_id = db.Column(UUID(as_uuid=True),
+                            db.ForeignKey('cocktail.id'),
+                            primary_key=True)
     cocktail = db.relationship('Cocktail',
-                backref=db.backref("cocktail_ingredients",
-                                cascade="all, delete-orphan")
-            )
+                               backref=db.backref('cocktail_ingredients',
+                                                  cascade='all, delete-orphan')
+                               )
     ingredient_id = db.Column(UUID(as_uuid=True),
-                            db.ForeignKey('ingredient.id'), primary_key=True)
+                              db.ForeignKey('ingredient.id'), primary_key=True)
     ingredient = db.relationship('Ingredient',
-                                backref=db.backref("cocktail_ingredients",
-                                cascade="all, delete-orphan")
-    )
+                                 backref=db.backref('cocktail_ingredients',
+                                                    cascade='all, '
+                                                            'delete-orphan'))
     amount = db.Column(db.String(255))
     main = db.Column(db.Boolean, default=False)
 
-    def __init__(self, cocktail=None, ingredient=None, amount=None, main=False):
+    def __init__(self,
+                 cocktail=None,
+                 ingredient=None,
+                 amount=None,
+                 main=False):
         self.cocktail = cocktail
         self.ingredient = ingredient
         self.amount = amount
@@ -74,12 +87,12 @@ class Cocktail(db.Model):
     method_id = db.Column(UUID(as_uuid=True), db.ForeignKey('method.id'))
     img_url = db.Column(db.String(), default='')
     ingredients = association_proxy('cocktail_ingredients', 'ingredient',
-                    creator=lambda i: Cocktail_Ingredients(ingredient=i))
-    
+                                    creator=lambda i: CocktailIngredients(
+                                        ingredient=i))
 
     def __repr__(self):
         return f'<Cocktail {self.name}>'
-    
+
     def to_dict(self):
         return {
             'id': self.id,
@@ -106,8 +119,10 @@ class Ingredient(db.Model):
                    unique=True, nullable=False)
     name = db.Column(db.String(255), nullable=False, unique=True)
     type = db.Column(db.String(255), nullable=False)
-    cocktails = association_proxy('cocktail_ingredients', 'cocktail',
-                    creator=lambda c: Cocktail_Ingredients(cocktail=c))
+    cocktails = association_proxy('cocktail_ingredients',
+                                  'cocktail',
+                                  creator=lambda c: CocktailIngredients(
+                                      cocktail=c))
 
     def __repr__(self):
         return f'<Ingredient {self.name}>'
@@ -121,12 +136,13 @@ class Method(db.Model):
                    default=uuid.uuid4,
                    unique=True, nullable=False)
     name = db.Column(db.String(255), nullable=False, unique=True)
-    cocktails = db.relationship('Cocktail', backref='method', 
+    cocktails = db.relationship('Cocktail',
+                                backref='method',
                                 lazy='dynamic')
 
     def __repr__(self):
         return f'<Method {self.name}>'
-    
+
     def to_dict(self):
         return {
             'id': self.id,
@@ -142,12 +158,13 @@ class Glassware(db.Model):
                    default=uuid.uuid4,
                    unique=True, nullable=False)
     name = db.Column(db.String(255), nullable=False, unique=True)
-    cocktails = db.relationship('Cocktail', backref='glassware', 
+    cocktails = db.relationship('Cocktail',
+                                backref='glassware',
                                 lazy='dynamic')
 
     def __repr__(self):
         return f'<Glassware {self.name}>'
-    
+
     def to_dict(self):
         return {
             'id': self.id,
@@ -157,8 +174,11 @@ class Glassware(db.Model):
 
 # Token helper model
 class TokenBlacklist(db.Model):
-    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4,
-                   unique=True, nullable=False)
+    id = db.Column(UUID(as_uuid=True),
+                   primary_key=True,
+                   default=uuid.uuid4,
+                   unique=True,
+                   nullable=False)
     jti = db.Column(db.String(36), nullable=False)
     token_type = db.Column(db.String(10), nullable=False)
     user_identity = db.Column(db.String(50), nullable=False)

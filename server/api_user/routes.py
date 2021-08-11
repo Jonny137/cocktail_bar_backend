@@ -31,7 +31,7 @@ def add_new_user():
         data = request.get_json()
         result = register_user(data)
 
-        return {'message': result.to_dict()}
+        return {'message': result.to_dict}
 
 
 @bp.route('/admin/login', methods=['POST'])

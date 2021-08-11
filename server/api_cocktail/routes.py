@@ -13,14 +13,14 @@ def add_new_cocktail():
         data = request.get_json()
         result = add_cocktail(data)
 
-        return {'message': result.to_dict()}
+        return {'message': result.to_dict}
 
 
 @bp.route('/cocktail/<cocktail_id>')
 def get_single_cocktail(cocktail_id):
     result = get_cocktail(cocktail_id)
 
-    return {'message': result.to_dict()}
+    return {'message': result.to_dict}
 
 
 @bp.route('/cocktail/<cocktail_id>', methods=['DELETE'])
@@ -38,18 +38,19 @@ def edit_single_cocktail(cocktail_id):
         data = request.get_json()
         result = edit_cocktail(cocktail_id, data)
 
-        return {'message': result.to_dict()}
+        return {'message': result.to_dict}
 
 
 @bp.route('/cocktails')
 def filter_cocktails():
     cocktails, total = find_cocktails(request.args)
 
-    result = [cocktail[0].to_dict() for cocktail in cocktails]
+    result = [cocktail[0].to_dict for cocktail in cocktails]
 
-    return {'message': {
-        'cocktails': result,
-        'total': total
+    return {
+        'message': {
+            'cocktails': result,
+            'total': total
         }
     }
 
