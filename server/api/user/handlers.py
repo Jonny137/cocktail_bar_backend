@@ -69,7 +69,7 @@ def logout(token_id):
         revoke_token(jti, user_identity)
         return 'Logout successful'
     except:
-        abort(404, 'Logout unsuccesful')
+        abort(404, 'Logout unsuccessful')
 
 
 def get_admin_panel_data():

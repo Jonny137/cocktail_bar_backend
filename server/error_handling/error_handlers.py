@@ -1,6 +1,6 @@
 from flask import jsonify, make_response
 from server import db
-from server.errors import bp
+from server.error_handling import bp
 
 
 def get_error_response(error, code):

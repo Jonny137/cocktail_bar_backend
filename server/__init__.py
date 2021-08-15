@@ -17,16 +17,16 @@ def create_app(config_class=Config):
     migrate.init_app(app, db)
     jwt.init_app(app)
 
-    from server.errors import bp as errors_bp
-    app.register_blueprint(errors_bp)
+    from server.error_handling import bp as error_handlers_bp
+    app.register_blueprint(error_handlers_bp)
 
-    from server.api_cocktail import bp as api_cocktail_bp
+    from server.api.cocktail import bp as api_cocktail_bp
     app.register_blueprint(api_cocktail_bp)
 
-    from server.api_user import bp as api_user_bp
+    from server.api.user import bp as api_user_bp
     app.register_blueprint(api_user_bp)
 
     return app
 
 
-from server import models
+from server import models # noqa

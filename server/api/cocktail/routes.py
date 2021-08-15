@@ -1,9 +1,9 @@
-from flask import request, abort
+from flask import request
 from flask_jwt_extended import jwt_required
-from server.api_cocktail import bp
-from server.api_cocktail.controllers import (
-    add_cocktail, get_cocktail, find_cocktails, get_filters, delete_cocktail,
-    edit_cocktail)
+from server.api.cocktail import bp
+from server.api.cocktail.handlers import (add_cocktail, get_cocktail,
+                                          find_cocktails, get_filters,
+                                          delete_cocktail, edit_cocktail)
 
 
 @bp.route('/cocktail', methods=['POST'])
@@ -13,14 +13,14 @@ def add_new_cocktail():
         data = request.get_json()
         result = add_cocktail(data)
 
-        return {'message': result.to_dict}
+        return {'message': result.to_dict()}
 
 
 @bp.route('/cocktail/<cocktail_id>')
 def get_single_cocktail(cocktail_id):
     result = get_cocktail(cocktail_id)
-
-    return {'message': result.to_dict}
+    print(result)
+    return {'message': result.to_dict()}
 
 
 @bp.route('/cocktail/<cocktail_id>', methods=['DELETE'])
@@ -38,14 +38,14 @@ def edit_single_cocktail(cocktail_id):
         data = request.get_json()
         result = edit_cocktail(cocktail_id, data)
 
-        return {'message': result.to_dict}
+        return {'message': result.to_dict()}
 
 
 @bp.route('/cocktails')
 def filter_cocktails():
     cocktails, total = find_cocktails(request.args)
 
-    result = [cocktail[0].to_dict for cocktail in cocktails]
+    result = [cocktail[0].to_dict() for cocktail in cocktails]
 
     return {
         'message': {

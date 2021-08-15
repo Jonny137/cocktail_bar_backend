@@ -1,10 +1,10 @@
 from flask import request
 from flask_jwt_extended import jwt_required, decode_token
-from server.api_user import bp
-from server.api_user.controllers import (register_user,
-                                         login,
-                                         logout,
-                                         get_admin_panel_data)
+from server.api.user import bp
+from server.api.user.handlers import (register_user,
+                                      login,
+                                      logout,
+                                      get_admin_panel_data)
 from server.jwt.jwt_util import is_token_revoked
 from server.extensions import jwt
 
