@@ -1,5 +1,6 @@
-from flask import abort, current_app
 from sqlalchemy import exc
+from flask import abort, current_app
+from sqlalchemy.orm.exc import NoResultFound, FlushError
 from flask_jwt_extended import (create_access_token,
                                 create_refresh_token,
                                 get_jwt_identity,
@@ -7,18 +8,19 @@ from flask_jwt_extended import (create_access_token,
 
 from server.jwt.jwt_util import add_token_to_database, revoke_token
 from server import db
-from server.models import Cocktail, Ingredient, Glassware, Method, User
+from server.models import User, Cocktail
 
 
 def register_user(user_info):
     keys = list(user_info.keys())
 
-    if 'username' not in keys or 'password' not in keys:
+    if 'username' not in keys or 'password' not in keys or 'email' not in keys:
         abort(400, 'Invalid request')
 
-    new_user = User(
-        username=user_info['username']
-    )
+    if db.session.query(User).filter(User.email == user_info['email']).first():
+        abort(400, 'Email is already in use')
+
+    new_user = User(username=user_info['username'], email=user_info['email'])
     new_user.set_password(user_info['password'])
 
     try:
@@ -32,7 +34,7 @@ def register_user(user_info):
     return new_user
 
 
-def login(user_info):
+def user_login(user_info):
     keys = list(user_info.keys())
 
     if 'username' not in keys or 'password' not in keys:
@@ -60,7 +62,7 @@ def login(user_info):
     }
 
 
-def logout(token_id):
+def user_logout(token_id):
     user_identity = get_jwt_identity()
     token_id = token_id.split(' ', 1)[1]
     jti = decode_token(token_id)['jti']
@@ -68,32 +70,47 @@ def logout(token_id):
     try:
         revoke_token(jti, user_identity)
         return 'Logout successful'
-    except:
-        abort(404, 'Logout unsuccessful')
+    except NoResultFound:
+        abort(401, 'Logout unsuccessful, no token')
+    except exc.SQLAlchemyError:
+        abort(500, 'Logout unsuccessful, internal error')
 
 
-def get_admin_panel_data():
-    data = {}
+def add_favorite(data):
+    user_identity = get_jwt_identity()
+    user = db.session.query(User).filter(User.id == user_identity).first()
+
+    cocktail = db.session \
+        .query(Cocktail) \
+        .filter(Cocktail.name == data['name']) \
+        .first()
 
     try:
-        cocktails = db.session.query(Cocktail.name).order_by(
-            Cocktail.name).all()
-        glassware = db.session.query(Glassware.name).order_by(
-            Glassware.name).all()
-        method = db.session.query(Method.name).order_by(Method.name).all()
-        garnish = db.session.query(Cocktail.garnish).distinct(
-            Cocktail.garnish).all()
-        ingredients = db.session.query(Ingredient.name).order_by(
-            Ingredient.name).all()
-
-        data = {
-            'name': [c for (c, ) in cocktails],
-            'glassware': [gl for (gl, ) in glassware],
-            'method': [m for (m, ) in method],
-            'garnish': [ga for (ga, ) in garnish],
-            'ingredients': [i for (i, ) in ingredients],
-        }
-    except exc.SQLAlchemyError:
+        user.favorites.append(cocktail)
+        db.session.commit()
+    except FlushError:
         abort(500, 'Internal server error')
 
-    return data
+    return {'user': user.to_dict(), 'cocktail': cocktail.to_dict()}
+
+
+def get_favorite_cocktails():
+    user_identity = get_jwt_identity()
+    user = db.session.query(User).filter(User.id == user_identity).first()
+
+    return [cocktail.to_dict() for cocktail in user.favorites]
+
+
+def remove_favorite_cocktail(data):
+    user_identity = get_jwt_identity()
+    user = db.session.query(User).filter(User.id == user_identity).first()
+
+    cocktail = db.session \
+        .query(Cocktail) \
+        .filter(Cocktail.name == data['name']) \
+        .first()
+
+    user.favorites.remove(cocktail)
+    db.session.commit()
+
+    return cocktail.to_dict()

@@ -1,12 +1,13 @@
 import os
 from flask import abort
-from sqlalchemy import func, exc, or_, and_
 import cloudinary
 import cloudinary.uploader
 import cloudinary.api
+from sqlalchemy import func, exc, or_, and_
 
 from server import db
 from server.models import Cocktail, Ingredient, Glassware, Method
+
 
 cloudinary.config(
     cloud_name=os.environ.get('CLD_NAME'),
@@ -118,7 +119,7 @@ def add_cocktail(data):
         db.session.commit()
 
     except exc.DataError:
-        abort(400, 'Invalid user')
+        abort(400, 'Invalid admin')
     except exc.SQLAlchemyError:
         abort(500, 'Internal server error')
 

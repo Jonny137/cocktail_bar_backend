@@ -14,17 +14,20 @@ def create_app(config_class=Config):
          supports_credentials=True)
 
     db.init_app(app)
-    migrate.init_app(app, db)
+    migrate.init_app(app, db, compare_type=True)
     jwt.init_app(app)
 
     from server.error_handling import bp as error_handlers_bp
     app.register_blueprint(error_handlers_bp)
 
     from server.api.cocktail import bp as api_cocktail_bp
-    app.register_blueprint(api_cocktail_bp)
+    app.register_blueprint(api_cocktail_bp, url_prefix='/cocktail')
+
+    from server.api.admin import bp as api_admin_bp
+    app.register_blueprint(api_admin_bp, url_prefix='/admin')
 
     from server.api.user import bp as api_user_bp
-    app.register_blueprint(api_user_bp)
+    app.register_blueprint(api_user_bp, url_prefix='/user')
 
     return app
 

@@ -6,7 +6,7 @@ from server.api.cocktail.handlers import (add_cocktail, get_cocktail,
                                           delete_cocktail, edit_cocktail)
 
 
-@bp.route('/cocktail', methods=['POST'])
+@bp.route('/', methods=['POST'])
 @jwt_required
 def add_new_cocktail():
     if request.is_json:
@@ -16,14 +16,13 @@ def add_new_cocktail():
         return {'message': result.to_dict()}
 
 
-@bp.route('/cocktail/<cocktail_id>')
+@bp.route('/<cocktail_id>')
 def get_single_cocktail(cocktail_id):
     result = get_cocktail(cocktail_id)
-    print(result)
     return {'message': result.to_dict()}
 
 
-@bp.route('/cocktail/<cocktail_id>', methods=['DELETE'])
+@bp.route('/<cocktail_id>', methods=['DELETE'])
 @jwt_required
 def delete_single_cocktail(cocktail_id):
     result = delete_cocktail(cocktail_id)
@@ -31,7 +30,7 @@ def delete_single_cocktail(cocktail_id):
     return {'message': 'Deleted cocktail id: {}'.format(result)}
 
 
-@bp.route('/cocktail/<cocktail_id>', methods=['PUT'])
+@bp.route('/<cocktail_id>', methods=['PUT'])
 @jwt_required
 def edit_single_cocktail(cocktail_id):
     if request.is_json:
@@ -41,7 +40,7 @@ def edit_single_cocktail(cocktail_id):
         return {'message': result.to_dict()}
 
 
-@bp.route('/cocktails')
+@bp.route('/retrieve')
 def filter_cocktails():
     cocktails, total = find_cocktails(request.args)
 

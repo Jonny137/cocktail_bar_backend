@@ -1,60 +1,69 @@
 from flask import request
-from flask_jwt_extended import jwt_required, decode_token
+from flask_jwt_extended import jwt_required
+
 from server.api.user import bp
-from server.api.user.handlers import (register_user,
-                                      login,
-                                      logout,
-                                      get_admin_panel_data)
-from server.jwt.jwt_util import is_token_revoked
-from server.extensions import jwt
+from server.api.user.handlers import (register_user, user_login, user_logout,
+                                      add_favorite, get_favorite_cocktails,
+                                      remove_favorite_cocktail)
 
 
-@jwt.token_in_blacklist_loader
-def check_if_token_revoked(decoded_token):
-    return is_token_revoked(decoded_token)
-
-
-@bp.route('/admin/token')
-@jwt_required
-def check_if_token_valid():
-    token = request.headers.get('Authorization')
-    token_id = token.split(' ', 1)[1]
-    decoded_token = decode_token(token_id)
-    result = is_token_revoked(decoded_token)
-
-    return {'message': not result}
-
-
-@bp.route('/admin/register', methods=['POST'])
-def add_new_user():
+@bp.route('/register', methods=['POST'])
+def register():
     if request.is_json:
         data = request.get_json()
         result = register_user(data)
 
-        return {'message': result.to_dict}
+        return {'message': result.to_dict()}
 
 
-@bp.route('/admin/login', methods=['POST'])
-def user_login():
+@bp.route('/login', methods=['POST'])
+def login():
     if request.is_json:
         data = request.get_json()
-        token = login(data)
+        token = user_login(data)
 
         return {'message': token}
 
 
-@bp.route('/admin/logout', methods=['PUT'])
+@bp.route('/logout', methods=['PUT'])
 @jwt_required
-def user_logout():
+def logout():
     encoded_token = request.headers.get('Authorization')
-    result = logout(encoded_token)
+    result = user_logout(encoded_token)
 
     return {'message': result}
 
 
-@bp.route('/admin/data')
+# Remove account and it's connected data
+# @bp.route('/revoke', methods=['DELETE'])
+# @jwt_required
+# def revoke():
+#     pass
+
+
+@bp.route('/favorite', methods=['POST'])
 @jwt_required
-def get_admin_data():
-    result = get_admin_panel_data()
+def set_favorite():
+    if request.is_json:
+        data = request.get_json()
 
-    return {'message': result}
+        return {'message': add_favorite(data)}
+
+
+@bp.route('/favorite')
+@jwt_required
+def get_favorite():
+    return {
+        'message': get_favorite_cocktails()
+    }
+
+
+@bp.route('/favorite', methods=['DELETE'])
+@jwt_required
+def remove_favorite():
+    if request.is_json:
+        data = request.get_json()
+
+        return {
+            'message': remove_favorite_cocktail(data)
+        }
