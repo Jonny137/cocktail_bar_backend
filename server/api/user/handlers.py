@@ -8,7 +8,7 @@ from flask_jwt_extended import (create_access_token,
 
 from server.jwt.jwt_util import add_token_to_database, revoke_token
 from server import db
-from server.models import User, Cocktail
+from server.models import User, Cocktail, UserRatings
 
 
 def register_user(user_info):
@@ -31,7 +31,7 @@ def register_user(user_info):
     except exc.SQLAlchemyError:
         abort(500, 'Internal server error')
 
-    return new_user
+    return new_user.to_dict()
 
 
 def user_login(user_info):
@@ -76,6 +76,22 @@ def user_logout(token_id):
         abort(500, 'Logout unsuccessful, internal error')
 
 
+def remove_account():
+    user_identity = None
+
+    try:
+        user_identity = get_jwt_identity()
+        user = db.session.query(User).filter(User.id == user_identity).first()
+        db.session.delete(user)
+        db.session.commit()
+    except exc.DataError:
+        abort(400, 'Invalid user')
+    except exc.SQLAlchemyError:
+        abort(500, 'Internal server error')
+
+    return user_identity
+
+
 def add_favorite(data):
     user_identity = get_jwt_identity()
     user = db.session.query(User).filter(User.id == user_identity).first()
@@ -111,6 +127,40 @@ def remove_favorite_cocktail(data):
         .first()
 
     user.favorites.remove(cocktail)
+    db.session.commit()
+
+    return cocktail.to_dict()
+
+
+def rate_cocktail(data):
+    cocktail = None
+    user_identity = get_jwt_identity()
+    user = db.session.query(User).filter(User.id == user_identity).first()
+
+    try:
+        cocktail = db.session \
+            .query(Cocktail) \
+            .filter(Cocktail.name == data['name']) \
+            .first()
+    except exc.DataError:
+        abort(400, 'Cocktail not found')
+
+    if int(data['old_rating']) == 0:
+        cocktail.total_rating = (
+                (cocktail.total_rating * cocktail.num_of_ratings +
+                 data['new_rating']) / (cocktail.num_of_ratings + 1))
+        cocktail.num_of_ratings += 1
+        db.session.add(UserRatings(cocktail, user, data['new_rating']))
+    else:
+        cocktail.total_rating = (
+                (cocktail.total_rating * cocktail.num_of_ratings +
+                 data['new_rating'] - data['old_rating']) /
+                cocktail.num_of_ratings)
+
+        new_user_rating = db.session.query(UserRatings).filter(
+            user.to_dict()['id'] == UserRatings.user_id).first()
+        new_user_rating.user_rating = data['new_rating']
+
     db.session.commit()
 
     return cocktail.to_dict()

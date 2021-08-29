@@ -4,7 +4,8 @@ from flask_jwt_extended import jwt_required
 from server.api.user import bp
 from server.api.user.handlers import (register_user, user_login, user_logout,
                                       add_favorite, get_favorite_cocktails,
-                                      remove_favorite_cocktail)
+                                      remove_favorite_cocktail, rate_cocktail,
+                                      remove_account)
 
 
 @bp.route('/register', methods=['POST'])
@@ -13,7 +14,7 @@ def register():
         data = request.get_json()
         result = register_user(data)
 
-        return {'message': result.to_dict()}
+        return {'message': result}
 
 
 @bp.route('/login', methods=['POST'])
@@ -34,11 +35,10 @@ def logout():
     return {'message': result}
 
 
-# Remove account and it's connected data
-# @bp.route('/revoke', methods=['DELETE'])
-# @jwt_required
-# def revoke():
-#     pass
+@bp.route('/remove_account', methods=['DELETE'])
+@jwt_required
+def revoke():
+    return {'message': f'Account removed, id: {remove_account()}'}
 
 
 @bp.route('/favorite', methods=['POST'])
@@ -67,3 +67,14 @@ def remove_favorite():
         return {
             'message': remove_favorite_cocktail(data)
         }
+
+
+@bp.route('/rate', methods=['PATCH'])
+@jwt_required
+def set_cocktail_rating():
+    if request.is_json:
+        data = request.get_json()
+
+        result = rate_cocktail(data)
+
+        return {'message': result}
