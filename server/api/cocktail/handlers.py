@@ -1,13 +1,14 @@
 import os
-from flask import abort
 import cloudinary
 import cloudinary.uploader
 import cloudinary.api
+from flask import abort
+from flask_jwt_extended import get_jwt_identity
 from sqlalchemy import func, exc, or_, and_
 
 from server import db
-from server.models import Cocktail, Ingredient, Glassware, Method
-
+from server.models import (Cocktail, Ingredient, Glassware, Method, User,
+                           UserRatings)
 
 cloudinary.config(
     cloud_name=os.environ.get('CLD_NAME'),
@@ -311,3 +312,41 @@ def get_filters():
             filters[2]['value'].append(ing['name'])
 
     return filters
+
+
+class UserRating:
+    pass
+
+
+def rate_cocktail(data):
+    cocktail = None
+    user_identity = get_jwt_identity()
+    user = db.session.query(User).filter(User.id == user_identity).first()
+
+    try:
+        cocktail = db.session \
+            .query(Cocktail) \
+            .filter(Cocktail.name == data['name']) \
+            .first()
+    except exc.DataError:
+        abort(400, 'Cocktail not found')
+
+    if int(data['old_rating']) == 0:
+        cocktail.total_rating = (
+                (cocktail.total_rating * cocktail.num_of_ratings +
+                 data['new_rating']) / (cocktail.num_of_ratings + 1))
+        cocktail.num_of_ratings += 1
+        db.session.add(UserRatings(cocktail, user, data['new_rating']))
+    else:
+        cocktail.total_rating = (
+                (cocktail.total_rating * cocktail.num_of_ratings +
+                 data['new_rating'] - data['old_rating']) /
+                cocktail.num_of_ratings)
+
+        new_user_rating = db.session.query(UserRatings).filter(
+            user.to_dict()['id'] == UserRatings.user_id).first()
+        new_user_rating.user_rating = data['new_rating']
+
+    db.session.commit()
+
+    return cocktail.to_dict()

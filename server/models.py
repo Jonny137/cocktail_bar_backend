@@ -37,7 +37,6 @@ class AdminUser(db.Model):
         }
 
 
-# Association table for user favorites cocktails
 cocktail_favorites = db.Table(
     'cocktail_favorites',
     db.Column('user_id',
@@ -72,15 +71,15 @@ class UserRatings(db.Model):
     user = db.relationship('User',
                            backref=db.backref('user_ratings',
                                               cascade='all, delete-orphan'))
-    rating = db.Column(db.Integer())
+    user_rating = db.Column(db.Integer())
 
     def __init__(self,
                  cocktail=None,
                  user=None,
-                 rating=None):
+                 user_rating=None):
         self.cocktail = cocktail
         self.user = user
-        self.rating = rating
+        self.user_rating = user_rating
 
     def __repr__(self):
         return f'<User_Rating {self.id}>'
@@ -199,6 +198,7 @@ class Cocktail(db.Model):
             'method': self.method.name,
             'glassware': self.glassware.name,
             'img_url': self.img_url,
+            'total_rating': self.total_rating,
             'ingredients': [{
                 'name': ing.ingredient.name,
                 'amount': ing.amount,

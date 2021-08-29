@@ -3,7 +3,8 @@ from flask_jwt_extended import jwt_required
 from server.api.cocktail import bp
 from server.api.cocktail.handlers import (add_cocktail, get_cocktail,
                                           find_cocktails, get_filters,
-                                          delete_cocktail, edit_cocktail)
+                                          delete_cocktail, edit_cocktail,
+                                          rate_cocktail)
 
 
 @bp.route('/', methods=['POST'])
@@ -59,3 +60,14 @@ def filters():
     result = get_filters()
 
     return {'message': result}
+
+
+@bp.route('/rate', methods=['PATCH'])
+@jwt_required
+def set_cocktail_rating():
+    if request.is_json:
+        data = request.get_json()
+
+        result = rate_cocktail(data)
+
+        return {'message': result}
