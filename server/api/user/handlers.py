@@ -9,16 +9,20 @@ from flask_jwt_extended import (create_access_token,
 from server.jwt.jwt_util import add_token_to_database, revoke_token
 from server import db
 from server.models import User, Cocktail, UserRatings
+from server.error_handlers.error_handlers import (throw_exception,
+                                                  INTERNAL_SERVER_ERROR,
+                                                  BAD_REQUEST, UNAUTHORIZED,
+                                                  FORBIDDEN)
 
 
 def register_user(user_info):
     keys = list(user_info.keys())
 
     if 'username' not in keys or 'password' not in keys or 'email' not in keys:
-        abort(400, 'Invalid request')
+        throw_exception(BAD_REQUEST, 'Invalid request.')
 
     if db.session.query(User).filter(User.email == user_info['email']).first():
-        abort(400, 'Email is already in use')
+        throw_exception(BAD_REQUEST, 'Email is already in use.')
 
     new_user = User(username=user_info['username'], email=user_info['email'])
     new_user.set_password(user_info['password'])
@@ -27,9 +31,9 @@ def register_user(user_info):
         db.session.add(new_user)
         db.session.commit()
     except exc.IntegrityError:
-        abort(400, 'User already exists')
+        throw_exception(BAD_REQUEST, 'User already exists.', True)
     except exc.SQLAlchemyError:
-        abort(500, 'Internal server error')
+        throw_exception(INTERNAL_SERVER_ERROR, rollback=True)
 
     return new_user.to_dict()
 
@@ -38,15 +42,15 @@ def user_login(user_info):
     keys = list(user_info.keys())
 
     if 'username' not in keys or 'password' not in keys:
-        abort(400, 'Invalid request')
+        throw_exception(BAD_REQUEST, 'Invalid request.')
 
     user = User.query.filter_by(username=user_info['username']).first()
 
     if not user:
-        abort(401, 'User does not exist')
+        throw_exception(UNAUTHORIZED, 'User does not exist.')
 
     if not user.check_password(user_info['password']):
-        abort(403, 'Invalid credentials')
+        throw_exception(FORBIDDEN, 'Invalid credentials.')
 
     access_token = create_access_token(identity=user.id)
     refresh_token = create_refresh_token(identity=user.id)
@@ -71,9 +75,9 @@ def user_logout(token_id):
         revoke_token(jti, user_identity)
         return 'Logout successful'
     except NoResultFound:
-        abort(401, 'Logout unsuccessful, no token')
+        throw_exception(UNAUTHORIZED, 'No token.', True)
     except exc.SQLAlchemyError:
-        abort(500, 'Logout unsuccessful, internal error')
+        throw_exception(INTERNAL_SERVER_ERROR, rollback=True)
 
 
 def remove_account():
@@ -85,9 +89,9 @@ def remove_account():
         db.session.delete(user)
         db.session.commit()
     except exc.DataError:
-        abort(400, 'Invalid user')
+        throw_exception(BAD_REQUEST, 'Invalid user.', True)
     except exc.SQLAlchemyError:
-        abort(500, 'Internal server error')
+        throw_exception(INTERNAL_SERVER_ERROR, rollback=True)
 
     return user_identity
 
@@ -105,7 +109,7 @@ def add_favorite(data):
         user.favorites.append(cocktail)
         db.session.commit()
     except FlushError:
-        abort(500, 'Internal server error')
+        throw_exception(INTERNAL_SERVER_ERROR, rollback=True)
 
     return {'user': user.to_dict(), 'cocktail': cocktail.to_dict()}
 
@@ -118,21 +122,6 @@ def get_favorite_cocktails():
 
 
 def remove_favorite_cocktail(data):
-    user_identity = get_jwt_identity()
-    user = db.session.query(User).filter(User.id == user_identity).first()
-
-    cocktail = db.session \
-        .query(Cocktail) \
-        .filter(Cocktail.name == data['name']) \
-        .first()
-
-    user.favorites.remove(cocktail)
-    db.session.commit()
-
-    return cocktail.to_dict()
-
-
-def rate_cocktail(data):
     cocktail = None
     user_identity = get_jwt_identity()
     user = db.session.query(User).filter(User.id == user_identity).first()
@@ -142,8 +131,30 @@ def rate_cocktail(data):
             .query(Cocktail) \
             .filter(Cocktail.name == data['name']) \
             .first()
+
+        user.favorites.remove(cocktail)
+        db.session.commit()
     except exc.DataError:
-        abort(400, 'Cocktail not found')
+        throw_exception(BAD_REQUEST, 'Cocktail not found.', True)
+    except exc.SQLAlchemyError:
+        throw_exception(INTERNAL_SERVER_ERROR, rollback=True)
+
+    return cocktail.to_dict()
+
+
+def rate_cocktail(data):
+    cocktail = None
+    # Wrap this a get user data decorator
+    user_identity = get_jwt_identity()
+    user = db.session.query(User).filter(User.id == user_identity).first()
+
+    try:
+        cocktail = db.session \
+            .query(Cocktail) \
+            .filter(Cocktail.name == data['name']) \
+            .first()
+    except exc.DataError:
+        throw_exception(BAD_REQUEST, 'Cocktail not found.', True)
 
     if int(data['old_rating']) == 0:
         cocktail.total_rating = (

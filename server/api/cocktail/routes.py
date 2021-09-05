@@ -1,12 +1,12 @@
 from flask import request
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, jwt_optional
 from server.api.cocktail import bp
 from server.api.cocktail.handlers import (add_cocktail, get_cocktail,
                                           find_cocktails, get_filters,
                                           delete_cocktail, edit_cocktail)
 
 
-@bp.route('/', methods=['POST'])
+@bp.route('', methods=['POST'])
 @jwt_required
 def add_new_cocktail():
     if request.is_json:
@@ -16,6 +16,7 @@ def add_new_cocktail():
 
 
 @bp.route('/<cocktail_id>')
+@jwt_optional
 def get_single_cocktail(cocktail_id):
     return {'message': get_cocktail(cocktail_id)}
 

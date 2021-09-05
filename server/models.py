@@ -84,6 +84,14 @@ class UserRatings(db.Model):
     def __repr__(self):
         return f'<User_Rating {self.id}>'
 
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'cocktail_id': self.cocktail_id,
+            'user_id': self.user_id,
+            'user_rating': self.user_rating
+        }
+
 
 class User(db.Model):
     __tablename__ = 'user'

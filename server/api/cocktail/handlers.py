@@ -3,10 +3,15 @@ import cloudinary
 import cloudinary.uploader
 import cloudinary.api
 from flask import abort
+from flask_jwt_extended import get_jwt_identity
 from sqlalchemy import func, exc, or_, and_
 
 from server import db
-from server.models import Cocktail, Ingredient, Glassware, Method
+from server.models import (Cocktail, Ingredient, Glassware, Method, User,
+                           UserRatings)
+from server.error_handlers.error_handlers import (throw_exception,
+                                                  INTERNAL_SERVER_ERROR,
+                                                  BAD_REQUEST, NOT_FOUND)
 
 cloudinary.config(
     cloud_name=os.environ.get('CLD_NAME'),
@@ -22,7 +27,7 @@ def add_ingredient(data):
         db.session.add(new_ingredient)
         db.session.commit()
     except exc.SQLAlchemyError:
-        abort(500, 'Internal server error')
+        throw_exception(INTERNAL_SERVER_ERROR, rollback=True)
 
     return new_ingredient
 
@@ -34,7 +39,7 @@ def add_glassware(name):
         db.session.add(new_glassware)
         db.session.commit()
     except exc.SQLAlchemyError:
-        abort(500, 'Internal server error')
+        throw_exception(INTERNAL_SERVER_ERROR, rollback=True)
 
     return new_glassware
 
@@ -46,7 +51,7 @@ def add_method(name):
         db.session.add(new_method)
         db.session.commit()
     except exc.SQLAlchemyError:
-        abort(500, 'Internal server error')
+        throw_exception(INTERNAL_SERVER_ERROR, rollback=True)
 
     return new_method
 
@@ -62,7 +67,7 @@ def add_cocktail(data):
         Cocktail.name == data['name']).first()
 
     if duplicate:
-        abort(500, 'Duplicated cocktail')
+        throw_exception(INTERNAL_SERVER_ERROR, 'Duplicated cocktail.')
 
     if 'ingredients' in list(data.keys()):
         for ing in data['ingredients']:
@@ -93,7 +98,7 @@ def add_cocktail(data):
             )
             new_img_url = cocktail_img['url']
         except cloudinary.exceptions.Error:
-            abort(500, 'Internal server error')
+            throw_exception(INTERNAL_SERVER_ERROR)
 
     try:
         new_cocktail = Cocktail(
@@ -118,9 +123,9 @@ def add_cocktail(data):
         db.session.commit()
 
     except exc.DataError:
-        abort(400, 'Invalid admin')
+        throw_exception(BAD_REQUEST, 'Invalid admin user.')
     except exc.SQLAlchemyError:
-        abort(500, 'Internal server error')
+        throw_exception(INTERNAL_SERVER_ERROR)
 
     return new_cocktail.to_dict()
 
@@ -133,9 +138,9 @@ def delete_cocktail(cocktail_id):
         db.session.commit()
 
     except exc.DataError:
-        abort(400, 'Invalid name')
+        throw_exception(BAD_REQUEST, 'Invalid cocktail name.')
     except exc.SQLAlchemyError:
-        abort(500, 'Internal server error')
+        throw_exception(INTERNAL_SERVER_ERROR, rollback=True)
 
     return cocktail_id
 
@@ -150,7 +155,7 @@ def edit_cocktail(cocktail_id, data):
             Cocktail.id == cocktail_id).first()
 
         if not cocktail:
-            abort(500, 'Internal server error')
+            throw_exception(INTERNAL_SERVER_ERROR)
 
         if 'glassware' in list(data.keys()):
             glassware = db.session.query(Glassware).filter(
@@ -190,28 +195,42 @@ def edit_cocktail(cocktail_id, data):
         db.session.commit()
 
     except exc.DataError:
-        abort(400, 'Invalid name')
+        throw_exception(BAD_REQUEST, rollback=True)
     except exc.SQLAlchemyError:
-        abort(500, 'Internal server error')
-
+        throw_exception(INTERNAL_SERVER_ERROR, rollback=True)
     return cocktail.to_dict()
 
 
 def get_cocktail(cocktail_id):
     cocktail = None
+    user = None
+
+    # Wrap this as a decorator for optional user data fetching
+    try:
+        user_identity = get_jwt_identity()
+        user = db.session.query(User).filter(User.id == user_identity).first()
+    except Exception as e:
+        print(e)
 
     try:
         cocktail = db.session.query(Cocktail).filter(
             Cocktail.id == cocktail_id).first()
     except exc.DataError:
-        abort(400, 'Invalid name')
+        throw_exception(BAD_REQUEST, 'Invalid cocktail name.')
     except exc.SQLAlchemyError:
-        abort(500, 'Internal server error')
+        throw_exception(INTERNAL_SERVER_ERROR)
 
     if not cocktail:
-        abort(404, 'Not Found')
+        throw_exception(NOT_FOUND)
     else:
-        return cocktail.to_dict()
+        data = cocktail.to_dict()
+        if user:
+            data['user_rating'] = db.session.query(UserRatings).filter(
+                and_(user.to_dict()['id'] == UserRatings.user_id),
+                (cocktail.to_dict()['id'] == UserRatings.cocktail_id)
+                ).first().to_dict()['user_rating']
+
+        return data
 
 
 def find_cocktails(args):
@@ -260,8 +279,8 @@ def find_cocktails(args):
 
         total = cocktails.total
         cocktails = cocktails.items
-    except exc.SQLAlchemyError as e:
-        abort(500, e)
+    except exc.SQLAlchemyError:
+        throw_exception(INTERNAL_SERVER_ERROR, rollback=True)
 
     return [cocktail[0].to_dict() for cocktail in cocktails], total
 
@@ -290,8 +309,10 @@ def get_filters():
         }
     ]
 
-    result = db.session.query(Ingredient.name,
-                              Ingredient.type).order_by(Ingredient.name).all()
+    result = db.session\
+        .query(Ingredient.name, Ingredient.type)\
+        .order_by(Ingredient.name)\
+        .all()
 
     ingredients = [
         {

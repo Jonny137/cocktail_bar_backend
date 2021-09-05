@@ -17,7 +17,7 @@ def create_app(config_class=Config):
     migrate.init_app(app, db, compare_type=True)
     jwt.init_app(app)
 
-    from server.error_handling import bp as error_handlers_bp
+    from server.error_handlers import bp as error_handlers_bp
     app.register_blueprint(error_handlers_bp)
 
     from server.api.cocktail import bp as api_cocktail_bp
