@@ -226,16 +226,13 @@ def get_cocktail(cocktail_id, user):
 
 
 def find_cocktails(args, user):
-    cocktails = []
+    filtered = []
     total = 0
     num_of_cocktails = 20
     search_list = []
     filter_list = []
     curr_page = 1
     keys = list(args.keys())
-
-    if len(keys) == 0:
-        cocktails = db.session.query(Cocktail).all()
 
     if 'page' in keys:
         curr_page = int(args['page'])
@@ -271,10 +268,26 @@ def find_cocktails(args, user):
 
         total = cocktails.total
         cocktails = cocktails.items
+
+        for cocktail in cocktails:
+            cocktail = cocktail[0].to_dict()
+            # If user is logged in, try to get his rating if it exists
+            # otherwise gracefully continue
+            if user:
+                try:
+                    cocktail['user_rating'] = db.session.query(
+                        UserRatings).filter(
+                        and_(user.to_dict()['id'] == UserRatings.user_id),
+                        (cocktail['id'] == UserRatings.cocktail_id)
+                    ).first().to_dict()['user_rating']
+                except AttributeError:
+                    pass
+            filtered.append(cocktail)
+
     except exc.SQLAlchemyError:
         throw_exception(INTERNAL_SERVER_ERROR, rollback=True)
 
-    return [cocktail[0].to_dict() for cocktail in cocktails], total
+    return filtered, total
 
 
 def get_filters():

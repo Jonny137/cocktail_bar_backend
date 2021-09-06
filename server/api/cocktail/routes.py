@@ -39,6 +39,7 @@ def edit_single_cocktail(cocktail_id):
 
 
 @bp.route('/retrieve')
+@jwt_optional
 @find_user
 def filter_cocktails(user):
     cocktails, total = find_cocktails(request.args, user)
