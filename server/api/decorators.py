@@ -1,28 +1,28 @@
-import re
 from functools import wraps
-from flask import request
+from flask_jwt_extended import get_jwt_identity
+from sqlalchemy import exc
 
-from server.error_handlers.error_handlers import (
-    throw_exception,
-    BAD_REQUEST,
-    UNAUTHORIZED
-)
+from server import db
+from server.error_handlers.error_handlers import (throw_exception,
+                                                  INTERNAL_SERVER_ERROR)
+from server.models import User
 
 
-def user_required(f):
+def find_user(f):
     @wraps(f)
-    def check_user_header(*args, **kwargs):
-        user = request.headers.get('X-Username')
+    def find_user_in_db(*args, **kwargs):
+        user = None
 
-        if not user:
-            throw_exception(UNAUTHORIZED, 110)
-
-        valid_user = re.match('^[a-zA-Z0-9_]{4,32}$', user)
-
-        if not valid_user:
-            throw_exception(BAD_REQUEST, 100)
+        try:
+            user_identity = get_jwt_identity()
+            user = db.session\
+                .query(User)\
+                .filter(User.id == user_identity)\
+                .first()
+        except exc.SQLAlchemyError:
+            throw_exception(INTERNAL_SERVER_ERROR)
 
         kwargs['user'] = user
         return f(*args, **kwargs)
 
-    return check_user_header
+    return find_user_in_db

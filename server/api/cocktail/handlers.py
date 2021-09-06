@@ -201,16 +201,8 @@ def edit_cocktail(cocktail_id, data):
     return cocktail.to_dict()
 
 
-def get_cocktail(cocktail_id):
+def get_cocktail(cocktail_id, user):
     cocktail = None
-    user = None
-
-    # Wrap this as a decorator for optional user data fetching
-    try:
-        user_identity = get_jwt_identity()
-        user = db.session.query(User).filter(User.id == user_identity).first()
-    except Exception as e:
-        print(e)
 
     try:
         cocktail = db.session.query(Cocktail).filter(
@@ -233,7 +225,7 @@ def get_cocktail(cocktail_id):
         return data
 
 
-def find_cocktails(args):
+def find_cocktails(args, user):
     cocktails = []
     total = 0
     num_of_cocktails = 20

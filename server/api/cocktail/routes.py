@@ -4,6 +4,7 @@ from server.api.cocktail import bp
 from server.api.cocktail.handlers import (add_cocktail, get_cocktail,
                                           find_cocktails, get_filters,
                                           delete_cocktail, edit_cocktail)
+from server.api.decorators import find_user
 
 
 @bp.route('', methods=['POST'])
@@ -17,8 +18,9 @@ def add_new_cocktail():
 
 @bp.route('/<cocktail_id>')
 @jwt_optional
-def get_single_cocktail(cocktail_id):
-    return {'message': get_cocktail(cocktail_id)}
+@find_user
+def get_single_cocktail(cocktail_id, user):
+    return {'message': get_cocktail(cocktail_id, user)}
 
 
 @bp.route('/<cocktail_id>', methods=['DELETE'])
@@ -37,8 +39,9 @@ def edit_single_cocktail(cocktail_id):
 
 
 @bp.route('/retrieve')
-def filter_cocktails():
-    cocktails, total = find_cocktails(request.args)
+@find_user
+def filter_cocktails(user):
+    cocktails, total = find_cocktails(request.args, user)
 
     return {
         'message': {

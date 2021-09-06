@@ -12,7 +12,7 @@ from server.models import User, Cocktail, UserRatings
 from server.error_handlers.error_handlers import (throw_exception,
                                                   INTERNAL_SERVER_ERROR,
                                                   BAD_REQUEST, UNAUTHORIZED,
-                                                  FORBIDDEN)
+                                                  FORBIDDEN, NOT_FOUND)
 
 
 def register_user(user_info):
@@ -96,9 +96,9 @@ def remove_account():
     return user_identity
 
 
-def add_favorite(data):
-    user_identity = get_jwt_identity()
-    user = db.session.query(User).filter(User.id == user_identity).first()
+def add_favorite(data, user):
+    if not user:
+        throw_exception(NOT_FOUND, 'User does not exist.')
 
     cocktail = db.session \
         .query(Cocktail) \
@@ -114,17 +114,18 @@ def add_favorite(data):
     return {'user': user.to_dict(), 'cocktail': cocktail.to_dict()}
 
 
-def get_favorite_cocktails():
-    user_identity = get_jwt_identity()
-    user = db.session.query(User).filter(User.id == user_identity).first()
+def get_favorite_cocktails(user):
+    if not user:
+        throw_exception(NOT_FOUND, 'User does not exist.')
 
     return [cocktail.to_dict() for cocktail in user.favorites]
 
 
-def remove_favorite_cocktail(data):
+def remove_favorite_cocktail(data, user):
+    if not user:
+        throw_exception(NOT_FOUND, 'User does not exist.')
+
     cocktail = None
-    user_identity = get_jwt_identity()
-    user = db.session.query(User).filter(User.id == user_identity).first()
 
     try:
         cocktail = db.session \
@@ -142,11 +143,11 @@ def remove_favorite_cocktail(data):
     return cocktail.to_dict()
 
 
-def rate_cocktail(data):
+def rate_cocktail(data, user):
+    if not user:
+        throw_exception(NOT_FOUND, 'User does not exist.')
+
     cocktail = None
-    # Wrap this a get user data decorator
-    user_identity = get_jwt_identity()
-    user = db.session.query(User).filter(User.id == user_identity).first()
 
     try:
         cocktail = db.session \
