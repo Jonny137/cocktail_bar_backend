@@ -1,5 +1,6 @@
+import logging
 from sqlalchemy import exc
-from flask import abort, current_app
+from flask import current_app
 from sqlalchemy.orm.exc import NoResultFound
 from flask_jwt_extended import (create_access_token,
                                 create_refresh_token,
@@ -13,6 +14,8 @@ from server.error_handlers.error_handlers import (throw_exception,
 from server.jwt.jwt_util import add_token_to_database, revoke_token
 from server import db
 from server.models import Cocktail, Ingredient, Glassware, Method, AdminUser
+
+logger = logging.getLogger(__name__)
 
 
 def register_admin(user_info):
@@ -38,17 +41,21 @@ def register_admin(user_info):
 
 
 def admin_login(user_info):
+    logger.info('Logging in admin.')
     keys = list(user_info.keys())
 
     if 'username' not in keys or 'password' not in keys:
+        logger.debug('Wrong user credentials.')
         throw_exception(BAD_REQUEST, 'Invalid request.')
 
     user = AdminUser.query.filter_by(username=user_info['username']).first()
 
     if not user:
+        logger.debug('Non-existent admin user.')
         throw_exception(UNAUTHORIZED, 'Admin user does not exist.')
 
     if not user.check_password(user_info['password']):
+        logger.debug('Password hash does not match.')
         throw_exception(FORBIDDEN, 'Invalid credentials.')
 
     access_token = create_access_token(identity=user.id)
@@ -59,6 +66,8 @@ def admin_login(user_info):
     add_token_to_database(
         refresh_token, current_app.config['JWT_IDENTITY_CLAIM'])
 
+    logger.info('Admin logged in successfully.')
+
     return {
         'access_token': access_token,
         'refresh_token': refresh_token
@@ -66,16 +75,20 @@ def admin_login(user_info):
 
 
 def admin_logout(token_id):
+    logger.info('Logging out admin.')
     user_identity = get_jwt_identity()
     token_id = token_id.split(' ', 1)[1]
     jti = decode_token(token_id)['jti']
 
     try:
         revoke_token(jti, user_identity)
+        logger.info('Admin logged out successfully.')
         return 'Logout successful'
     except NoResultFound:
+        logger.debug('No token specified.')
         throw_exception(UNAUTHORIZED, 'No token.', True)
     except exc.SQLAlchemyError:
+        logger.debug('Error during admin user fetching from database.')
         throw_exception(INTERNAL_SERVER_ERROR, True)
 
 

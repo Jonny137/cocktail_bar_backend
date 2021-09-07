@@ -2,12 +2,10 @@ import os
 import cloudinary
 import cloudinary.uploader
 import cloudinary.api
-from flask import abort
-from flask_jwt_extended import get_jwt_identity
 from sqlalchemy import func, exc, or_, and_
 
 from server import db
-from server.models import (Cocktail, Ingredient, Glassware, Method, User,
+from server.models import (Cocktail, Ingredient, Glassware, Method,
                            UserRatings)
 from server.error_handlers.error_handlers import (throw_exception,
                                                   INTERNAL_SERVER_ERROR,

@@ -1,8 +1,12 @@
 from flask import Flask
 from flask_cors import CORS
+import logging.config
 
 from config import Config
 from server.extensions import jwt, db, migrate
+from server.logger.log_config import LOG_CONFIG
+
+logging.config.dictConfig(LOG_CONFIG)
 
 
 def create_app(config_class=Config):

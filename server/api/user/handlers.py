@@ -1,5 +1,5 @@
 from sqlalchemy import exc
-from flask import abort, current_app
+from flask import current_app
 from sqlalchemy.orm.exc import NoResultFound, FlushError
 from flask_jwt_extended import (create_access_token,
                                 create_refresh_token,
