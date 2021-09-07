@@ -1,4 +1,5 @@
 import os
+import logging
 import cloudinary
 import cloudinary.uploader
 import cloudinary.api
@@ -16,6 +17,7 @@ cloudinary.config(
     api_key=os.environ.get('CLD_API_KEY'),
     api_secret=os.environ.get('CLD_API_SECRET')
 )
+logger = logging.getLogger(__name__)
 
 
 def add_ingredient(data):
@@ -24,7 +26,8 @@ def add_ingredient(data):
     try:
         db.session.add(new_ingredient)
         db.session.commit()
-    except exc.SQLAlchemyError:
+    except exc.SQLAlchemyError as err:
+        logger.debug(f'Error during ingredient addition: {data}', err)
         throw_exception(INTERNAL_SERVER_ERROR, rollback=True)
 
     return new_ingredient
@@ -36,7 +39,8 @@ def add_glassware(name):
     try:
         db.session.add(new_glassware)
         db.session.commit()
-    except exc.SQLAlchemyError:
+    except exc.SQLAlchemyError as err:
+        logger.debug(f'Error during glassware addition: {name}', err)
         throw_exception(INTERNAL_SERVER_ERROR, rollback=True)
 
     return new_glassware
@@ -48,7 +52,8 @@ def add_method(name):
     try:
         db.session.add(new_method)
         db.session.commit()
-    except exc.SQLAlchemyError:
+    except exc.SQLAlchemyError as err:
+        logger.debug(f'Error during method addition {name}', err)
         throw_exception(INTERNAL_SERVER_ERROR, rollback=True)
 
     return new_method
@@ -61,10 +66,13 @@ def add_cocktail(data):
     method = None
     new_img_url = ''
 
+    logger.info(f'Adding new cocktail [{data["name"]}]')
+
     duplicate = db.session.query(Cocktail).filter(
         Cocktail.name == data['name']).first()
 
     if duplicate:
+        logger.debug(f'Cocktail with name: {data["name"]} already exists.')
         throw_exception(INTERNAL_SERVER_ERROR, 'Duplicated cocktail.')
 
     if 'ingredients' in list(data.keys()):
@@ -95,7 +103,8 @@ def add_cocktail(data):
                 public_id=data['image']['name']
             )
             new_img_url = cocktail_img['url']
-        except cloudinary.exceptions.Error:
+        except cloudinary.exceptions.Error as err:
+            logger.debug(f'Error during image uploading: {data["image"]}', err)
             throw_exception(INTERNAL_SERVER_ERROR)
 
     try:
@@ -120,10 +129,17 @@ def add_cocktail(data):
         db.session.add(new_cocktail)
         db.session.commit()
 
-    except exc.DataError:
+    except exc.DataError as err:
+        logger.debug(
+            f'Data error during cocktail addition: {data["name"]}', err)
         throw_exception(BAD_REQUEST, 'Invalid admin user.')
-    except exc.SQLAlchemyError:
+    except exc.SQLAlchemyError as err:
+        logger.debug(
+            f'SQL error during cocktail addition: {data["name"]}', err)
         throw_exception(INTERNAL_SERVER_ERROR)
+
+    logger.info(
+        f'Cocktail: {new_cocktail.to_dict()["name"]} successfully added.')
 
     return new_cocktail.to_dict()
 
@@ -135,10 +151,16 @@ def delete_cocktail(cocktail_id):
         db.session.delete(cocktail)
         db.session.commit()
 
-    except exc.DataError:
+    except exc.DataError as err:
+        logger.debug(
+            f'Data error during cocktail deletion: {cocktail_id}', err)
         throw_exception(BAD_REQUEST, 'Invalid cocktail name.')
-    except exc.SQLAlchemyError:
+    except exc.SQLAlchemyError as err:
+        logger.debug(
+            f'SQL error during cocktail deletion: {cocktail_id}', err)
         throw_exception(INTERNAL_SERVER_ERROR, rollback=True)
+
+    logger.info(f'Cocktail with ID: {cocktail_id} successfully deleted.')
 
     return cocktail_id
 
@@ -192,25 +214,38 @@ def edit_cocktail(cocktail_id, data):
 
         db.session.commit()
 
-    except exc.DataError:
+    except exc.DataError as err:
+        logger.debug(
+            f'Data error during cocktail editing: {data["name"]}', err)
         throw_exception(BAD_REQUEST, rollback=True)
-    except exc.SQLAlchemyError:
+    except exc.SQLAlchemyError as err:
+        logger.debug(
+            f'SQL error during cocktail editing: {data["name"]}', err)
         throw_exception(INTERNAL_SERVER_ERROR, rollback=True)
+
+    logger.info(f'Cocktail: {cocktail.to_dict()["name"]} successfully edited')
+
     return cocktail.to_dict()
 
 
 def get_cocktail(cocktail_id, user):
     cocktail = None
+    logger.info(f'Fetching cocktail with id: {cocktail_id}')
 
     try:
         cocktail = db.session.query(Cocktail).filter(
             Cocktail.id == cocktail_id).first()
-    except exc.DataError:
+    except exc.DataError as err:
+        logger.debug(
+            f'Data error during cocktail {cocktail_id} fetching.', err)
         throw_exception(BAD_REQUEST, 'Invalid cocktail name.')
-    except exc.SQLAlchemyError:
+    except exc.SQLAlchemyError as err:
+        logger.debug(
+            f'SQL error during cocktail {cocktail_id} fetching.', err)
         throw_exception(INTERNAL_SERVER_ERROR)
 
     if not cocktail:
+        logger.debug(f'Cocktail with ID:{cocktail_id} not found.')
         throw_exception(NOT_FOUND)
     else:
         data = cocktail.to_dict()
@@ -219,6 +254,8 @@ def get_cocktail(cocktail_id, user):
                 and_(user.to_dict()['id'] == UserRatings.user_id),
                 (cocktail.to_dict()['id'] == UserRatings.cocktail_id)
                 ).first().to_dict()['user_rating']
+
+        logger.info(f'Cocktail: {data["name"]} successfully fetched.')
 
         return data
 
@@ -282,7 +319,8 @@ def find_cocktails(args, user):
                     pass
             filtered.append(cocktail)
 
-    except exc.SQLAlchemyError:
+    except exc.SQLAlchemyError as err:
+        logger.debug('SQL error during cocktails fetching.', err)
         throw_exception(INTERNAL_SERVER_ERROR, rollback=True)
 
     return filtered, total
@@ -312,6 +350,8 @@ def get_filters():
         }
     ]
 
+    logger.info('Fetching filters.')
+
     result = db.session\
         .query(Ingredient.name, Ingredient.type)\
         .order_by(Ingredient.name)\
@@ -332,5 +372,7 @@ def get_filters():
             filters[3]['value'].append(ing['name'])
         else:
             filters[2]['value'].append(ing['name'])
+
+    logger.info('Filters successfully fetched.')
 
     return filters

@@ -30,11 +30,13 @@ def register_admin(user_info):
     try:
         db.session.add(new_user)
         db.session.commit()
-    except exc.IntegrityError:
+    except exc.IntegrityError as err:
+        logger.debug(f'Error during admin addition', err)
         throw_exception(BAD_REQUEST,
                         'Admin user already exists.',
                         rollback=True)
-    except exc.SQLAlchemyError:
+    except exc.SQLAlchemyError as err:
+        logger.debug(f'SQL Error during admin addition', err)
         throw_exception(INTERNAL_SERVER_ERROR, rollback=True)
 
     return new_user
@@ -84,11 +86,11 @@ def admin_logout(token_id):
         revoke_token(jti, user_identity)
         logger.info('Admin logged out successfully.')
         return 'Logout successful'
-    except NoResultFound:
-        logger.debug('No token specified.')
+    except NoResultFound as err:
+        logger.debug('Error during logout of admin user.', err)
         throw_exception(UNAUTHORIZED, 'No token.', True)
-    except exc.SQLAlchemyError:
-        logger.debug('Error during admin user fetching from database.')
+    except exc.SQLAlchemyError as err:
+        logger.debug('Error during admin user fetching from database.', err)
         throw_exception(INTERNAL_SERVER_ERROR, True)
 
 
@@ -113,7 +115,8 @@ def get_admin_panel_data():
             'garnish': [ga for (ga, ) in garnish],
             'ingredients': [i for (i, ) in ingredients],
         }
-    except exc.SQLAlchemyError:
+    except exc.SQLAlchemyError as err:
+        logger.debug('Error during admin panel data setup', err)
         throw_exception(INTERNAL_SERVER_ERROR, rollback=True)
 
     return data

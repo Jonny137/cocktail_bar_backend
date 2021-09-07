@@ -1,4 +1,5 @@
 from sqlalchemy import exc
+import logging
 from flask import current_app
 from sqlalchemy.orm.exc import NoResultFound, FlushError
 from flask_jwt_extended import (create_access_token,
@@ -14,11 +15,16 @@ from server.error_handlers.error_handlers import (throw_exception,
                                                   BAD_REQUEST, UNAUTHORIZED,
                                                   FORBIDDEN, NOT_FOUND)
 
+logger = logging.getLogger(__name__)
+
 
 def register_user(user_info):
     keys = list(user_info.keys())
 
+    logger.info('Registering new user.')
+
     if 'username' not in keys or 'password' not in keys or 'email' not in keys:
+        logger.debug('Missing parameters for registration.')
         throw_exception(BAD_REQUEST, 'Invalid request.')
 
     if db.session.query(User).filter(User.email == user_info['email']).first():
@@ -30,16 +36,21 @@ def register_user(user_info):
     try:
         db.session.add(new_user)
         db.session.commit()
-    except exc.IntegrityError:
+    except exc.IntegrityError as err:
+        logger.debug('Duplicated user.', err)
         throw_exception(BAD_REQUEST, 'User already exists.', True)
-    except exc.SQLAlchemyError:
+    except exc.SQLAlchemyError as err:
+        logger.debug(f'SQL error during user {user_info} registration', err)
         throw_exception(INTERNAL_SERVER_ERROR, rollback=True)
+
+    logger.info('New user successfully registered.')
 
     return new_user.to_dict()
 
 
 def user_login(user_info):
     keys = list(user_info.keys())
+    logger.info('Logging in user.')
 
     if 'username' not in keys or 'password' not in keys:
         throw_exception(BAD_REQUEST, 'Invalid request.')
@@ -50,6 +61,7 @@ def user_login(user_info):
         throw_exception(UNAUTHORIZED, 'User does not exist.')
 
     if not user.check_password(user_info['password']):
+        logger.debug('Password is not correct.')
         throw_exception(FORBIDDEN, 'Invalid credentials.')
 
     access_token = create_access_token(identity=user.id)
@@ -60,6 +72,7 @@ def user_login(user_info):
     add_token_to_database(
         refresh_token, current_app.config['JWT_IDENTITY_CLAIM'])
 
+    logger.info('User successfully logged in.')
     return {
         'access_token': access_token,
         'refresh_token': refresh_token
@@ -70,35 +83,42 @@ def user_logout(token_id):
     user_identity = get_jwt_identity()
     token_id = token_id.split(' ', 1)[1]
     jti = decode_token(token_id)['jti']
+    logger.info('Logging out user.')
 
     try:
         revoke_token(jti, user_identity)
+        logger.info('User successfully logged out.')
         return 'Logout successful'
-    except NoResultFound:
+    except NoResultFound as err:
+        logger.debug('User token non existent', err)
         throw_exception(UNAUTHORIZED, 'No token.', True)
-    except exc.SQLAlchemyError:
+    except exc.SQLAlchemyError as err:
+        logger.debug('SQL error during logout.', err)
         throw_exception(INTERNAL_SERVER_ERROR, rollback=True)
 
 
-def remove_account():
-    user_identity = None
-
+def remove_account(user):
+    logger.info('Revoking user account.')
     try:
-        user_identity = get_jwt_identity()
-        user = db.session.query(User).filter(User.id == user_identity).first()
         db.session.delete(user)
         db.session.commit()
-    except exc.DataError:
+    except exc.DataError as err:
+        logger.debug('Error during account revoking.', err)
         throw_exception(BAD_REQUEST, 'Invalid user.', True)
-    except exc.SQLAlchemyError:
+    except exc.SQLAlchemyError as err:
+        logger.debug('SQL Error during account revoking.', err)
         throw_exception(INTERNAL_SERVER_ERROR, rollback=True)
 
-    return user_identity
+    logger.info('User account successfully revoked.')
+
+    return 'User account revoked.'
 
 
 def add_favorite(data, user):
     if not user:
         throw_exception(NOT_FOUND, 'User does not exist.')
+
+    logger.info(f'Adding new favorite cocktail {data} for user {user}')
 
     cocktail = db.session \
         .query(Cocktail) \
@@ -111,12 +131,19 @@ def add_favorite(data, user):
     except FlushError:
         throw_exception(INTERNAL_SERVER_ERROR, rollback=True)
 
+    logger.info(
+        f'New favorite cocktail {data} for user {user} successfully added.')
+
     return {'user': user.to_dict(), 'cocktail': cocktail.to_dict()}
 
 
 def get_favorite_cocktails(user):
+    logger.info(f'Fetching favorite cocktails for user: {user}')
+
     if not user:
         throw_exception(NOT_FOUND, 'User does not exist.')
+
+    logger.info(f'Favorite cocktails for user {user} successfully fetched.')
 
     return [cocktail.to_dict() for cocktail in user.favorites]
 
@@ -125,6 +152,7 @@ def remove_favorite_cocktail(data, user):
     if not user:
         throw_exception(NOT_FOUND, 'User does not exist.')
 
+    logger.info(f'Removing favorite cocktail {data} for user: {user}')
     cocktail = None
 
     try:
@@ -135,10 +163,15 @@ def remove_favorite_cocktail(data, user):
 
         user.favorites.remove(cocktail)
         db.session.commit()
-    except exc.DataError:
+    except exc.DataError as err:
+        logger.debug(f'Error during favorite cocktail removal.', err)
         throw_exception(BAD_REQUEST, 'Cocktail not found.', True)
-    except exc.SQLAlchemyError:
+    except exc.SQLAlchemyError as err:
+        logger.debug(f'SQL Error during favorite cocktail removal.', err)
         throw_exception(INTERNAL_SERVER_ERROR, rollback=True)
+
+    logger.info(
+        f'Favorite cocktail {data} for user {user} successfully removed.')
 
     return cocktail.to_dict()
 
@@ -148,6 +181,7 @@ def rate_cocktail(data, user):
         throw_exception(NOT_FOUND, 'User does not exist.')
 
     cocktail = None
+    logger.info(f'Rating new cocktail {data} for user {user}.')
 
     try:
         cocktail = db.session \
@@ -174,5 +208,6 @@ def rate_cocktail(data, user):
         new_user_rating.user_rating = data['new_rating']
 
     db.session.commit()
+    logger.info(f'Cocktail {data} successfully rated for user {user}.')
 
     return cocktail.to_dict()

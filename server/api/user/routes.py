@@ -38,8 +38,9 @@ def logout():
 
 @bp.route('/remove_account', methods=['DELETE'])
 @jwt_required
-def revoke():
-    return {'message': f'Account removed, id: {remove_account()}'}
+@find_user
+def revoke(user):
+    return {'message': remove_account(user)}
 
 
 @bp.route('/favorite', methods=['POST'])
