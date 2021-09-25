@@ -31,12 +31,12 @@ def register_admin(user_info):
         db.session.add(new_user)
         db.session.commit()
     except exc.IntegrityError as err:
-        logger.debug(f'Error during admin addition', err)
+        logger.debug(f'Error during admin addition {err}')
         throw_exception(BAD_REQUEST,
                         'Admin user already exists.',
                         rollback=True)
     except exc.SQLAlchemyError as err:
-        logger.debug(f'SQL Error during admin addition', err)
+        logger.debug(f'SQL Error during admin addition {err}')
         throw_exception(INTERNAL_SERVER_ERROR, rollback=True)
 
     return new_user

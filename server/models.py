@@ -114,6 +114,8 @@ class User(db.Model):
                                         'cocktail',
                                         creator=lambda c: CocktailIngredients(
                                             cocktail=c))
+    confirmed = db.Column(db.Boolean, nullable=False, default=False)
+    confirmed_on = db.Column(db.DateTime, nullable=True)
 
     def __repr__(self):
         return f'<User id:{self.id} name:{self.username}>'

@@ -5,7 +5,7 @@ from server.api.admin.handlers import (register_admin,
                                        admin_login,
                                        admin_logout,
                                        get_admin_panel_data)
-from server.jwt.jwt_util import is_token_revoked
+from server.jwt.jwt_util import is_token_revoked, prune_database
 from server.extensions import jwt
 
 
@@ -58,3 +58,11 @@ def get_admin_data():
     result = get_admin_panel_data()
 
     return {'message': result}
+
+
+@bp.route('/prune')
+@jwt_required
+def prune_jwt():
+    prune_database()
+
+    return {'message': 'Expired JWT tokens removed.'}

@@ -1,12 +1,16 @@
-from sqlalchemy import exc
 import logging
-from flask import current_app
+import datetime
+from sqlalchemy import exc
+from flask import current_app, url_for, render_template
 from sqlalchemy.orm.exc import NoResultFound, FlushError
 from flask_jwt_extended import (create_access_token,
                                 create_refresh_token,
                                 get_jwt_identity,
                                 decode_token)
 
+from server.api.user.email import send_email
+from server.api.user.verify_token import generate_confirmation_token, \
+    confirm_token
 from server.jwt.jwt_util import add_token_to_database, revoke_token
 from server import db
 from server.models import User, Cocktail, UserRatings
@@ -15,6 +19,7 @@ from server.error_handlers.error_handlers import (throw_exception,
                                                   BAD_REQUEST, UNAUTHORIZED,
                                                   FORBIDDEN, NOT_FOUND)
 
+VERIFY_MAIL_SUBJECT = '[Den of Thieves] Please confirm your email'
 logger = logging.getLogger(__name__)
 
 
@@ -45,7 +50,53 @@ def register_user(user_info):
 
     logger.info('New user successfully registered.')
 
+    token = generate_confirmation_token(new_user.email)
+    logger.info('New user verification token generated.')
+    confirm_url = url_for('user.confirm_email', token=token, _external=True)
+    html = render_template('user/activate.html', confirm_url=confirm_url)
+    send_email(new_user.email, VERIFY_MAIL_SUBJECT, html)
+    logger.info('Verification email sent.')
+
     return new_user.to_dict()
+
+
+def confirm_user_email(token):
+    email = None
+
+    try:
+        logger.info('Trying to confirm verification token.')
+        email = confirm_token(token)
+    except Exception as err:
+        logger.debug('Error during token confirmation', err)
+        throw_exception(BAD_REQUEST,
+                        'The confirmation link is invalid or has expired.')
+
+    user = User.query.filter_by(email=email).first()
+
+    if not user:
+        throw_exception(INTERNAL_SERVER_ERROR, 'User not found.')
+
+    if user.confirmed:
+        logger.info('User already confirmed.')
+        return 'Account already confirmed. Please login.'
+    else:
+        user.confirmed = True
+        user.confirmed_on = datetime.datetime.now()
+        db.session.add(user)
+        db.session.commit()
+
+    logger.info('User successfully confirmed.')
+    return 'OK'
+
+
+def resend_confirmation_email(user):
+    token = generate_confirmation_token(user.email)
+    confirm_url = url_for('user.confirm_email', token=token, _external=True)
+    html = render_template('user/activate.html', confirm_url=confirm_url)
+    send_email(user.email, VERIFY_MAIL_SUBJECT, html)
+    logger.info('A new confirmation email has been sent.')
+
+    return 'New confirmation email sent.'
 
 
 def user_login(user_info):
@@ -63,6 +114,9 @@ def user_login(user_info):
     if not user.check_password(user_info['password']):
         logger.debug('Password is not correct.')
         throw_exception(FORBIDDEN, 'Invalid credentials.')
+
+    if not user.confirmed:
+        throw_exception(FORBIDDEN, 'User not verified.')
 
     access_token = create_access_token(identity=user.id)
     refresh_token = create_refresh_token(identity=user.id)
@@ -164,10 +218,10 @@ def remove_favorite_cocktail(data, user):
         user.favorites.remove(cocktail)
         db.session.commit()
     except exc.DataError as err:
-        logger.debug(f'Error during favorite cocktail removal.', err)
+        logger.debug('Error during favorite cocktail removal.', err)
         throw_exception(BAD_REQUEST, 'Cocktail not found.', True)
     except exc.SQLAlchemyError as err:
-        logger.debug(f'SQL Error during favorite cocktail removal.', err)
+        logger.debug('SQL Error during favorite cocktail removal.', err)
         throw_exception(INTERNAL_SERVER_ERROR, rollback=True)
 
     logger.info(
@@ -193,15 +247,15 @@ def rate_cocktail(data, user):
 
     if int(data['old_rating']) == 0:
         cocktail.total_rating = (
-                (cocktail.total_rating * cocktail.num_of_ratings +
-                 data['new_rating']) / (cocktail.num_of_ratings + 1))
+            (cocktail.total_rating * cocktail.num_of_ratings +
+             data['new_rating']) / (cocktail.num_of_ratings + 1))
         cocktail.num_of_ratings += 1
         db.session.add(UserRatings(cocktail, user, data['new_rating']))
     else:
         cocktail.total_rating = (
-                (cocktail.total_rating * cocktail.num_of_ratings +
-                 data['new_rating'] - data['old_rating']) /
-                cocktail.num_of_ratings)
+            (cocktail.total_rating * cocktail.num_of_ratings +
+             data['new_rating'] - data['old_rating']) /
+            cocktail.num_of_ratings)
 
         new_user_rating = db.session.query(UserRatings).filter(
             user.to_dict()['id'] == UserRatings.user_id).first()

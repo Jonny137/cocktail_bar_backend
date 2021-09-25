@@ -19,15 +19,15 @@ ERROR_MESSAGES = {
 
 
 def get_error_response(error, http_code):
-    response = make_response(
-        jsonify({
-            'message': error.description['message'],
-            'status': error.description['status'],
-            'status_code': http_code
-        }),
-        http_code
-    )
-    return response
+        response = make_response(
+            jsonify({
+                'message': error.description['message'] or 'message',
+                'status': error.description['status'] or 'status',
+                'status_code': http_code or 404
+            }),
+            http_code
+        )
+        return response
 
 
 @bp.app_errorhandler(BAD_REQUEST)
@@ -66,4 +66,3 @@ def throw_exception(http_code, message='', rollback=False):
             'message': message
         }
     )
-

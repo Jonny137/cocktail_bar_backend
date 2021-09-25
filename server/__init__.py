@@ -1,9 +1,10 @@
 from flask import Flask
 from flask_cors import CORS
+
 import logging.config
 
 from config import Config
-from server.extensions import jwt, db, migrate
+from server.extensions import jwt, db, migrate, mail
 from server.logger.log_config import LOG_CONFIG
 
 logging.config.dictConfig(LOG_CONFIG)
@@ -20,6 +21,7 @@ def create_app(config_class=Config):
     db.init_app(app)
     migrate.init_app(app, db, compare_type=True)
     jwt.init_app(app)
+    mail.init_app(app)
 
     from server.error_handlers import bp as error_handlers_bp
     app.register_blueprint(error_handlers_bp)

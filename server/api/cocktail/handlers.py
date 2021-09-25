@@ -253,7 +253,7 @@ def get_cocktail(cocktail_id, user):
             data['user_rating'] = db.session.query(UserRatings).filter(
                 and_(user.to_dict()['id'] == UserRatings.user_id),
                 (cocktail.to_dict()['id'] == UserRatings.cocktail_id)
-                ).first().to_dict()['user_rating']
+            ).first().to_dict()['user_rating']
 
         logger.info(f'Cocktail: {data["name"]} successfully fetched.')
 
