@@ -86,7 +86,7 @@ def confirm_user_email(token):
         db.session.commit()
 
     logger.info('User successfully confirmed.')
-    return 'OK'
+    return 'Account successfully confirmed.'
 
 
 def resend_confirmation_email(user):

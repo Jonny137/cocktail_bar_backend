@@ -23,7 +23,7 @@ def register():
 def confirm_email(token):
     response = confirm_user_email(token)
 
-    return {'message': response, 'status': response}
+    return {'message': response}
 
 
 @bp.route('/resend', methods=['POST'])
