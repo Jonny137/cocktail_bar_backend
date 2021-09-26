@@ -12,11 +12,11 @@ class Config(object):
     CORS_HEADERS = 'Content-Type'
     FRONTEND_URL = os.environ.get('FRONTEND_URL')
     # Mail settings
-    MAIL_DEFAULT_SENDER = 'from@example.com'
-    MAIL_SERVER = 'smtp.mailtrap.io'
-    MAIL_PORT = 2525
-    MAIL_USERNAME = '3872c33ec8eaf9'
-    MAIL_PASSWORD = 'a700653a58310c'
-    MAIL_USE_TLS = True
-    MAIL_USE_SSL = False
-    MAIL_DEBUG = False
+    MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER')
+    MAIL_SERVER = os.environ.get('MAIL_SERVER')
+    MAIL_PORT = os.environ.get('MAIL_PORT')
+    MAIL_USERNAME = os.environ.get('MAIL_USERNAME')
+    MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
+    MAIL_USE_TLS = os.environ.get('MAIL_USE_TLS')
+    MAIL_USE_SSL = os.environ.get('MAIL_USE_SSL')
+    MAIL_DEBUG = os.environ.get('MAIL_DEBUG')
