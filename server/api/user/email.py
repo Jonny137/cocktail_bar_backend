@@ -9,6 +9,6 @@ def send_email(to, subject, template):
         subject,
         recipients=[to],
         html=template,
-        sender=current_app.config['MAIL_DEFAULT_SENDER']
+        sender=('Den of Thieves', current_app.config['MAIL_DEFAULT_SENDER'])
     )
     mail.send(msg)

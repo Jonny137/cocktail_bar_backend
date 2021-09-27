@@ -39,6 +39,17 @@ def register_user(user_info):
     new_user.set_password(user_info['password'])
 
     try:
+        token = generate_confirmation_token(new_user.email)
+        logger.info('New user verification token generated.')
+        confirm_url = url_for('user.confirm_email', token=token,
+                              _external=True)
+        html = render_template('user/activate.html', confirm_url=confirm_url)
+        send_email(new_user.email, VERIFY_MAIL_SUBJECT, html)
+        logger.info('Verification email sent.')
+    except Exception as err:
+        logger.debug(f'Error during sending verification email, log at: {err}')
+
+    try:
         db.session.add(new_user)
         db.session.commit()
     except exc.IntegrityError as err:
@@ -49,13 +60,6 @@ def register_user(user_info):
         throw_exception(INTERNAL_SERVER_ERROR, rollback=True)
 
     logger.info('New user successfully registered.')
-
-    token = generate_confirmation_token(new_user.email)
-    logger.info('New user verification token generated.')
-    confirm_url = url_for('user.confirm_email', token=token, _external=True)
-    html = render_template('user/activate.html', confirm_url=confirm_url)
-    send_email(new_user.email, VERIFY_MAIL_SUBJECT, html)
-    logger.info('Verification email sent.')
 
     return new_user.to_dict()
 
